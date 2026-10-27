@@ -10,8 +10,16 @@ kumo.on(
 Called by the ESMTP server in response to the client issuing an `"AUTH PLAIN"`
 authentication attempt.
 
-KumoMTA will only allow `AUTH PLAIN` once STARTTLS has been successfully
-enabled for the session.
+{{since('dev', indent=True)}}
+    The event is also triggered by an `"AUTH LOGIN"` exchange, the
+    two-prompt mechanism most legacy clients use: *authz* is then empty (and
+    so, per the rule below, equals *authc*), *authc* is the username line and
+    *password* the password line. The policy cannot tell the two mechanisms
+    apart and does not need to.
+
+KumoMTA will only allow `AUTH` once STARTTLS has been successfully
+enabled for the session, unless the listener (or its matching `peer` block)
+sets [allow_auth_without_tls](../kumo/start_esmtp_listener/allow_auth_without_tls.md).
 
 At the time of writing KumoMTA doesn't provide a general authentication
 solution, but through the use of this callback, you have some flexibility.

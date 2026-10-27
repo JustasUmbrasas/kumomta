@@ -9,6 +9,8 @@ kumo.on('init', function()
   kumo.start_esmtp_listener {
     listen = '127.0.0.1:0',
     relay_hosts = { '0.0.0.0/0' },
+    -- The auth tests exercise AUTH LOGIN/PLAIN in the clear against this listener.
+    allow_auth_without_tls = true,
   }
 
   kumo.configure_local_logs {

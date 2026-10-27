@@ -2,6 +2,7 @@
 mod arc;
 mod auth_deliver;
 mod auth_deliver_invalid_password;
+mod auth_login;
 #[cfg(target_os = "linux")]
 mod bad_source_address;
 mod bare_lf_line_length;
@@ -82,4 +83,5 @@ mod tsa_skip_record_types;
 mod tsa_tenant_suspension;
 mod tsa_tenant_suspension_issue290;
 mod xclient;
+mod xclient_login;
 mod xfer;

@@ -53,6 +53,17 @@
 
 ## Other Changes and Enhancements
 
+ * The ESMTP listener now accepts `AUTH LOGIN` in addition to `AUTH PLAIN`;
+   both mechanisms trigger
+   [smtp_server_auth_plain](../reference/events/smtp_server_auth_plain.md).
+   A new listener option,
+   [allow_auth_without_tls](../reference/kumo/start_esmtp_listener/allow_auth_without_tls.md),
+   permits `AUTH` on a session that has not negotiated TLS, for submission
+   services with clients that never issue `STARTTLS`. The `XCLIENT`
+   extension gained the `LOGIN` attribute, which marks the session as
+   authenticated with the identity a trusted proxy asserts
+   ([allow_xclient](../reference/kumo/start_esmtp_listener/allow_xclient.md)).
+
  * Implicit TLS (SMTPS) is now supported on both the inbound and outbound SMTP
    paths.
    [kumo.start_esmtp_listener](../reference/kumo/start_esmtp_listener/index.md)
