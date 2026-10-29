@@ -20,6 +20,14 @@ KumoMTA supports the following XCLIENT attributes:
    to reflect the specified address and/or port.
  * `DESTADDR` and `DESTPORT`: cause the `received_via` metadata to
    change to reflect the specified address and/or port.
+ * `LOGIN` {{since('dev', inline=True)}}: asserts that the proxy has
+   authenticated the client as the given identity. The session is then
+   authenticated exactly as a successful `AUTH` exchange would have left it:
+   `authn_id`/`authz_id` are set in the connection metadata and the identity
+   is added to the session's `AuthInfo`, so policy that keys on them
+   (relaying, sender checks, logging) needs no special case. The Postfix
+   spellings `[UNAVAILABLE]` and `[TEMPUNAVAIL]` leave the session
+   unauthenticated.
 
 None of the other XCLIENT attributes are supported at the time of writing.
 

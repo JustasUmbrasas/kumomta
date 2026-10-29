@@ -82,4 +82,5 @@ mod tsa_skip_record_types;
 mod tsa_tenant_suspension;
 mod tsa_tenant_suspension_issue290;
 mod xclient;
+mod xclient_login;
 mod xfer;

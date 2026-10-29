@@ -53,6 +53,11 @@
 
 ## Other Changes and Enhancements
 
+ * The `XCLIENT` extension gained the `LOGIN` attribute, which marks the
+   session as authenticated with the identity a trusted proxy asserts, the
+   way a submission proxy such as Dovecot's hands a login over
+   ([allow_xclient](../reference/kumo/start_esmtp_listener/allow_xclient.md)).
+
  * Implicit TLS (SMTPS) is now supported on both the inbound and outbound SMTP
    paths.
    [kumo.start_esmtp_listener](../reference/kumo/start_esmtp_listener/index.md)

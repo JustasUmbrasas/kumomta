@@ -1911,7 +1911,7 @@ impl SmtpServerSession {
                         extensions.push("AUTH PLAIN");
                     }
                     if self.params.allow_xclient {
-                        extensions.push("XCLIENT ADDR PORT DESTADDR DESTPORT");
+                        extensions.push("XCLIENT ADDR PORT DESTADDR DESTPORT LOGIN");
                     }
 
                     let extensions = match self
@@ -2478,9 +2478,15 @@ impl SmtpServerSession {
         let mut port: Option<u16> = None;
         let mut dest_addr: Option<IpAddr> = None;
         let mut dest_port: Option<u16> = None;
+        let mut login: Option<String> = None;
 
         for p in params {
-            if p.is_name("ADDR") {
+            if p.is_name("LOGIN") {
+                // Postfix spells "no login" as [UNAVAILABLE] / [TEMPUNAVAIL]
+                if !p.value.starts_with('[') {
+                    login.replace(p.value.clone());
+                }
+            } else if p.is_name("ADDR") {
                 let Ok(ip) = p.parse::<IpAddr>() else {
                     self.write_response(
                         501,
@@ -2563,6 +2569,25 @@ impl SmtpServerSession {
                     ),
                 },
                 when: Utc::now(),
+            });
+        }
+
+        if let Some(login) = login {
+            // The proxy asserts that it authenticated the client as `login`;
+            // the session carries that identity exactly as a successful AUTH
+            // exchange would have set it.
+            self.authorization_id.replace(login.clone());
+            self.authentication_id.replace(login.clone());
+            self.meta.set_meta("authz_id", login.clone());
+            self.meta.set_meta("authn_id", login.clone());
+            let mut auth_info = self.meta.auth_info.lock();
+            auth_info.add_identity(Identity {
+                identity: login.clone(),
+                context: IdentityContext::SmtpAuthPlainAuthorization,
+            });
+            auth_info.add_identity(Identity {
+                identity: login,
+                context: IdentityContext::SmtpAuthPlainAuthentication,
             });
         }
 
