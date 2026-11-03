@@ -29,8 +29,6 @@ const MAX_LINE_LEN: usize = 4096;
 
 #[derive(Error, Debug, Clone)]
 pub enum ClientError {
-    #[error("response is not UTF8")]
-    Utf8(#[from] std::string::FromUtf8Error),
     #[error("Malformed Response: {0}")]
     MalformedResponseLine(String),
     #[error("Response line is too long")]
@@ -123,8 +121,7 @@ impl ClientError {
     /// a separate connection
     pub fn was_due_to_message(&self) -> bool {
         match self {
-            Self::Utf8(_)
-            | Self::MalformedResponseLine(_)
+            Self::MalformedResponseLine(_)
             | Self::ResponseTooLong
             | Self::NotConnected
             | Self::InvalidDnsName(_)
@@ -329,9 +326,11 @@ impl SmtpClient {
                         return Err(ClientError::ResponseTooLong);
                     }
 
-                    let line = String::from_utf8(self.read_buffer[0..i].to_vec());
+                    // Servers may answer in a legacy charset; keep the status code
+                    // so a permanent failure is not retried as a transient error.
+                    let line = String::from_utf8_lossy(&self.read_buffer[0..i]).into_owned();
                     self.read_buffer.drain(0..i + 2);
-                    return Ok(line?);
+                    return Ok(line);
                 }
             }
             if self.read_buffer.len() > MAX_LINE_LEN {
@@ -1324,6 +1323,34 @@ mod test {
         panic!("{resp:#?}");
     }
     */
+
+    #[tokio::test]
+    async fn non_utf8_response_keeps_status_code() {
+        use tokio::io::AsyncWriteExt;
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let (mut server_side, _) = listener.accept().await.unwrap();
+            server_side
+                // GBK for "mailbox does not exist"
+                .write_all(b"550 mailbox x@example.com unavailable (\xd3\xca\xcf\xe4\xb2\xbb\xb4\xe6\xd4\xda)\r\n")
+                .await
+                .unwrap();
+            server_side.shutdown().await.unwrap();
+        });
+        let client_side = tokio::net::TcpStream::connect(addr).await.unwrap();
+        let mut client =
+            SmtpClient::with_stream(client_side, "localhost", SmtpClientTimeouts::default());
+        let response = client
+            .read_response(None, Duration::from_secs(5))
+            .await
+            .unwrap();
+        assert_eq!(response.code, 550);
+        assert!(response
+            .content
+            .starts_with("mailbox x@example.com unavailable"));
+    }
 
     #[test]
     fn response_line_parsing() {
