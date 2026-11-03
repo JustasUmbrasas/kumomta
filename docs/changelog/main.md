@@ -148,6 +148,12 @@
 
 ## Fixes
 
+* The ESMTP listener now performs a graceful shutdown after answering `QUIT`,
+  so a STARTTLS session ends with a TLS close_notify instead of a bare TCP
+  close. Peers that treat the bare close as an error (dovecot's submission
+  relay logged `Connection lost (last SSL error: Connection closed)` on every
+  session) no longer do.
+
  * With DNSSEC validation enabled, the hickory resolver backend could
    misclassify unsigned zones as DNSSEC-bogus and prevent delivery to the
    affected domains, due to an upstream hickory bug

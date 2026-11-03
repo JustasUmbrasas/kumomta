@@ -1864,11 +1864,17 @@ impl SmtpServerSession {
                         .await?;
                 }
                 Ok(MaybePartialCommand::Full(Command::Quit)) => {
+                    // ForceDisconnect takes the graceful shutdown path, which
+                    // sends the TLS close_notify after the 221. Dropping the
+                    // session instead ends a STARTTLS session with a bare TCP
+                    // close, which peers report as an error (dovecot's
+                    // submission relay logs "Connection lost (last SSL error:
+                    // Connection closed)" on every session).
                     self.write_response(
                         221,
                         "So long, and thanks for all the fish!",
                         None,
-                        RejectDisconnect::If421,
+                        RejectDisconnect::ForceDisconnect,
                     )
                     .await?;
                     return Ok(());
