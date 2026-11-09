@@ -178,6 +178,12 @@
 
 ## Fixes
 
+ * [request:body](../reference/kumo.http/Request.md#requestbodybody) failed
+   with `error converting Lua string to String (invalid utf-8 sequence ...)`
+   when the body was not valid UTF-8, for example a message with 8-bit content
+   passed to `request:body(msg:get_data())` to scan it over HTTP. The body is
+   now sent as the raw bytes of the Lua string.
+
  * The [AAA accounting log](../reference/kumo.aaa/configure_acct_log.md)
    didn't finalize its active segment on shutdown, resulting in incomplete
    writes unless you had set `max_segment_duration` to a relatively short value.

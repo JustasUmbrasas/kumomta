@@ -155,7 +155,9 @@ impl LuaUserData for RequestWrapper {
             Ok(this.clone())
         });
 
-        methods.add_method("body", |_, this, body: String| {
+        // Take the Lua string's bytes as-is: a body need not be valid UTF-8.
+        methods.add_method("body", |_, this, body: mlua::String| {
+            let body = body.as_bytes().to_vec();
             this.apply(|b| Ok(b.body(body)))?;
             Ok(this.clone())
         });
@@ -585,6 +587,30 @@ pub fn register(lua: &Lua) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn body_accepts_bytes_that_are_not_utf8() {
+        let lua = Lua::new();
+        let request = RequestWrapper::new(Client::new().post("http://127.0.0.1/"));
+        lua.globals().set("request", request.clone()).unwrap();
+
+        lua.load(r#"request:body('caf\xe9 \xff\x00end')"#)
+            .exec()
+            .unwrap();
+
+        let built = request
+            .builder
+            .lock()
+            .unwrap()
+            .take()
+            .unwrap()
+            .build()
+            .unwrap();
+        k9::assert_equal!(
+            built.body().and_then(|b| b.as_bytes()),
+            Some(&b"caf\xe9 \xff\x00end"[..])
+        );
+    }
 
     fn headers_with_duplicate_set_cookie() -> HeaderMapWrapper {
         let mut headers = HeaderMap::new();
