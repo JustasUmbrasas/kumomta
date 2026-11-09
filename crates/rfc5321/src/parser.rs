@@ -18,7 +18,7 @@ use nom_utils::{
 use pastey::paste;
 use std::borrow::Cow;
 use std::hash::{Hash, Hasher};
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::time::Duration;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -758,6 +758,23 @@ impl XClientParameter {
     {
         let parsed: Result<T, T::Err> = self.value.parse();
         parsed.map_err(|e| e.to_string())
+    }
+
+    /// Parse the parameter value as an IP address, as used by the
+    /// `ADDR` and `DESTADDR` parameters.
+    ///
+    /// The Postfix XCLIENT specification writes IPv6 addresses with an
+    /// `IPV6:` prefix (matched case-insensitively here); clients such as
+    /// Dovecot's submission relay always send it. A bare IPv6 address is
+    /// accepted too. A prefixed value must be an IPv6 address.
+    pub fn parse_ip_addr(&self) -> Result<IpAddr, String> {
+        match self.value.get(..5) {
+            Some(prefix) if prefix.eq_ignore_ascii_case("IPV6:") => self.value[5..]
+                .parse::<Ipv6Addr>()
+                .map(IpAddr::V6)
+                .map_err(|e| e.to_string()),
+            _ => self.parse::<IpAddr>(),
+        }
     }
 }
 
@@ -2158,6 +2175,37 @@ Ok(
 )
 "#
         );
+    }
+
+    // ------------------------------------------------------------------
+    // XCLIENT address parameter tests
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn test_xclient_parse_ip_addr() {
+        let param = |value: &str| XClientParameter {
+            name: "ADDR".to_string(),
+            value: value.to_string(),
+        };
+        k9::assert_equal!(
+            param("192.0.2.1").parse_ip_addr(),
+            Ok("192.0.2.1".parse::<IpAddr>().unwrap())
+        );
+        k9::assert_equal!(
+            param("2001:db8::1").parse_ip_addr(),
+            Ok("2001:db8::1".parse::<IpAddr>().unwrap())
+        );
+        k9::assert_equal!(
+            param("IPV6:2001:db8::1").parse_ip_addr(),
+            Ok("2001:db8::1".parse::<IpAddr>().unwrap())
+        );
+        k9::assert_equal!(
+            param("ipv6:2001:db8::1").parse_ip_addr(),
+            Ok("2001:db8::1".parse::<IpAddr>().unwrap())
+        );
+        assert!(param("IPV6:192.0.2.1").parse_ip_addr().is_err());
+        assert!(param("IPV6:").parse_ip_addr().is_err());
+        assert!(param("[UNAVAILABLE]").parse_ip_addr().is_err());
     }
 
     // ------------------------------------------------------------------

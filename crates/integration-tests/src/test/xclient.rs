@@ -95,6 +95,61 @@ async fn xclient_switch_from_addr() -> anyhow::Result<()> {
     Ok(())
 }
 
+// The Postfix XCLIENT specification, and clients following it such as
+// Dovecot's submission relay, write IPv6 addresses as `IPV6:<address>`.
+#[tokio::test]
+async fn xclient_switch_from_ipv6_prefixed_addr() -> anyhow::Result<()> {
+    let mut daemon = DaemonWithMaildirOptions::new()
+        .start()
+        .await
+        .context("DaemonWithMaildir::start")?;
+
+    let mut client = daemon.smtp_client().await.context("make smtp_client")?;
+    let tracer = daemon.trace_server().await?;
+
+    client.ehlo_lhlo("there", false).await?;
+
+    let xclient_result = client
+        .send_command(&Command::XClient(vec![
+            XClientParameter {
+                name: "ADDR".to_string(),
+                value: "IPV6:2001:db8::42".to_string(),
+            },
+            XClientParameter {
+                name: "PORT".to_string(),
+                value: "42".to_string(),
+            },
+        ]))
+        .await?;
+    eprintln!("{xclient_result:#?}");
+    k9::assert_equal!(xclient_result.code, 220);
+
+    client.ehlo_lhlo("there", false).await?;
+
+    tracer
+        .wait_for(
+            |events| {
+                events.iter().any(|event| {
+                    matches!(&event.payload, Callback{name,..}
+                        if name == "smtp_server_get_dynamic_parameters")
+                })
+            },
+            Duration::from_secs(10),
+        )
+        .await;
+
+    let trace_events = tracer.stop().await?;
+    let final_meta = &trace_events.last().unwrap().conn_meta;
+    k9::assert_equal!(
+        final_meta.get("received_from").unwrap().to_string(),
+        "\"[2001:db8::42]:42\""
+    );
+
+    daemon.stop_both().await.context("stop_both")?;
+
+    Ok(())
+}
+
 #[tokio::test]
 async fn xclient_switch_via_addr() -> anyhow::Result<()> {
     let mut daemon = DaemonWithMaildirOptions::new()

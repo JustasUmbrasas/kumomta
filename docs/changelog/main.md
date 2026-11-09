@@ -178,6 +178,12 @@
 
 ## Fixes
 
+ * `XCLIENT` rejected IPv6 addresses written with the `IPV6:` prefix of the
+   [Postfix XCLIENT specification](https://www.postfix.org/XCLIENT_README.html)
+   with `501 ADDR ... is invalid`. Dovecot's submission relay, for example,
+   always sends IPv6 client addresses that way. `ADDR` and `DESTADDR` now
+   accept the prefix (case-insensitively) as well as a bare address.
+
  * The [AAA accounting log](../reference/kumo.aaa/configure_acct_log.md)
    didn't finalize its active segment on shutdown, resulting in incomplete
    writes unless you had set `max_segment_duration` to a relatively short value.
