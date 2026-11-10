@@ -2488,7 +2488,7 @@ impl SmtpServerSession {
 
         for p in params {
             if p.is_name("ADDR") {
-                let Ok(ip) = p.parse::<IpAddr>() else {
+                let Ok(ip) = p.parse_ip_addr() else {
                     self.write_response(
                         501,
                         format!("ADDR {} is invalid", p.value),
@@ -2512,7 +2512,7 @@ impl SmtpServerSession {
                 };
                 port.replace(v);
             } else if p.is_name("DESTADDR") {
-                let Ok(ip) = p.parse::<IpAddr>() else {
+                let Ok(ip) = p.parse_ip_addr() else {
                     self.write_response(
                         501,
                         format!("DESTADDR {} is invalid", p.value),
